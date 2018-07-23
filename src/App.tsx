@@ -1,22 +1,23 @@
-import * as React from 'react';
-import './App.css';
-
-import logo from './logo.svg';
+import * as React from 'react'
+import './App.css'
 
 class App extends React.Component {
-  public render() {
+  onClickTalk() {
+    console.log(`onClickTalk: `)
+  }
+
+  render() {
     return (
-      <div className="App">
-        <header className="App-header">
-          <img src={logo} className="App-logo" alt="logo" />
-          <h1 className="App-title">Welcome to React</h1>
-        </header>
-        <p className="App-intro">
-          To get started, edit <code>src/App.tsx</code> and save to reload.
-        </p>
+      <div className="kl-app">
+        <div className="kl-canvas">
+        </div>
+
+        <button className="kl-button-talk" onClick={this.onClickTalk}>
+          <i className="material-icons">mic</i>
+        </button>
       </div>
     );
   }
 }
 
-export default App;
+export default App
