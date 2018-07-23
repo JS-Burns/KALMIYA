@@ -18,21 +18,36 @@
   background-size: cover; 
 }
 
-.kl-button-talk {
+.kl-talk {
   --diameter: 20ch;
-
-  background: rgba(0,0,0,0.5);
-  border-radius: 50%;
-  border: 3px solid rgba(255,255,255,0.3);
-  bottom: 4em;
-  color: white;
-  cursor: pointer;
-  height: var(--diameter);
   left: calc(50% - 10ch);
   position: absolute;
   width: var(--diameter);
+  bottom: 4em;
+
+  display: grid;
+  grid-gap: 1em;
+  justify-content: center;
+  text-align: center;
+  color: white;
+}
+
+.kl-button-talk {
+  width: 20ch;
+  height: 20ch;
+  background: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  color: white;
+  cursor: pointer;
 }
 
 .kl-button-talk .material-icons {
   font-size: 6em;
+}
+
+.kl-button-talk--active {
+  --color: red;
+  border-color: var(--color);
+  color: var(--color);
 }

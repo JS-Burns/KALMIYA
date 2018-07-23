@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "microsoft-speech-browser-sdk": "0.0.12",
     "react": "^16.4.1",
     "react-dom": "^16.4.1",
     "react-scripts-ts": "2.16.0"
