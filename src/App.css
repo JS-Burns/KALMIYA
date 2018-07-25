@@ -21,9 +21,6 @@
   position: absolute;
   width: 100vw;
   height: 100vh;
-  
-  background: url('/seattle.jpg') no-repeat center center;
-  background-size: cover; 
 }
 
 .kl-chat {
@@ -92,6 +89,38 @@
 
 .kl-button-talk .material-icons {
   font-size: 5em;
+  vertical-align: sub;
+}
+
+.kl-photo {
+  --diameter: 10ch;
+  left: calc(50% - var(--diameter) / 2 + 15ch);
+  position: absolute;
+  width: var(--diameter);
+  bottom: 2em;
+
+  display: grid;
+  grid-gap: 1em;
+  justify-content: center;
+  text-align: center;
+  color: white;
+  text-shadow: 0px 0px 6px rgba(0,0,0,0.2);
+}
+
+.kl-button-photo {
+  width: var(--diameter);
+  height: var(--diameter);
+  background: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.4);
+  color: white;
+  cursor: pointer;
+  box-shadow: 0px 0px 6px 4px rgba(0,0,0,0.2);
+}
+
+.kl-button-photo .material-icons {
+  font-size: 3em;
+  vertical-align: sub;
 }
 
 .kl-button-talk--active {
@@ -100,10 +129,29 @@
   color: var(--color);
 }
 
+.kl-snapshots {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 200px;
+  padding: 1em;
+
+  display: grid;
+  grid-auto-rows: min-content;
+  grid-gap: 1em;
+  background: rgba(0,0,0,0.2);
+}
+
+.kl-snapshot img {
+  display: block;
+  width: 100%;
+}
+
 .kl-debug {
   position: absolute;
   bottom: 2em;
-  left: 2em;
+  left: 280px;
 
   display: grid;
   grid-gap: 0.2em;

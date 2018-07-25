@@ -4,6 +4,8 @@ import * as SpeechService from './services/speechRecognizer'
 import * as vision from './services/vision'
 import * as personalityChat from './services/personalityChat'
 import { intent, Intents } from './services/intent'
+import * as visualSearch from './services/visualSearch'
+import * as services from './services'
 import * as util from './utilities'
 import * as uuid from 'uuid/v4'
 import './App.css'
@@ -47,21 +49,33 @@ class App extends React.Component<{}, State> {
   }
 
   // TODO: Simulate webcam input from video being drawn to canvas
-  componentDidMount() {
-    const canvas = this.canvasRef.current!
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
+  async componentDidMount() {
+    const canvasElement = this.canvasRef.current!
+    canvasElement.width = window.innerWidth
+    canvasElement.height = window.innerHeight
 
-    const image = new Image()
-    image.onload = () => {
-      const context = canvas.getContext('2d')!
-      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const videoElement = this.videoRef.current!
+    videoElement.addEventListener(`canplay`, (event) => {
+      console.log(`Video.canPlay event`)
+      console.log(`width: ${videoElement.videoWidth}`)
+      console.log(`height: ${videoElement.videoHeight}`)
+      // canvasElement.width = videoElement.videoWidth
+      // canvasElement.height = videoElement.videoHeight
+    })
+
+    const constraints = {
+      video: true
     }
-    image.src = "/seattle.jpg"
+    const stream = await navigator.mediaDevices.getUserMedia(constraints)
+    videoElement.srcObject = stream
   }
 
   onClickTalk = () => {
     SpeechService.start(this.recognizer, this.onEvent, this.onComplete, this.onError)
+  }
+
+  onClickPhoto = () => {
+    this.onAnalyze('')
   }
 
   onComplete = () => {
@@ -145,19 +159,40 @@ class App extends React.Component<{}, State> {
     }
 
     if (intent(text).intent === Intents.Analyze) {
-      this.onAnalyze()
+      this.onAnalyze(text)
     }
   }
 
-  onAnalyze = async () => {
+  onAnalyze = async (text: string) => {
     console.log(`Analyze`)
     this.addMessage(`Analyzing...`, UserType.Bot)
-
+    
+    const videoElement = this.videoRef.current!
     const canvasElement = this.canvasRef.current!
+
     const context = canvasElement.getContext('2d')!
+    context.drawImage(videoElement, 0, 0, canvasElement.width, canvasElement.height)
 
     const blob = await util.canvasToBlob(canvasElement)
     const { analyze, ocr } = await vision.all(blob)
+
+    try {
+      const result = await services.imageSearch.query(text)
+      console.log(JSON.stringify(result, null, 2))
+    }
+    catch (e) {
+      console.error(`Error occurred while attempting to submit image search for: ${text}`)
+    }
+
+    const formData = new FormData()
+    formData.append("image", blob)
+    try {
+      const result = await visualSearch.query(formData)
+      console.log(JSON.stringify(result, null, 2))
+    }
+    catch (e) {
+      console.error(`Error when attempting to perform visual search: `, e)
+    }
 
     console.log(JSON.stringify(analyze, null, 2))
     console.log(JSON.stringify(ocr, null, 2))
@@ -172,6 +207,10 @@ class App extends React.Component<{}, State> {
     this.setState(prevState => ({
       snapshots: [...prevState.snapshots, snapshot]
     }))
+
+    setTimeout(() => {
+      context.clearRect(0, 0, canvasElement.width, canvasElement.height)
+    }, 1000)
 
     if (analyze.description.captions.length > 0) {
       const caption = analyze.description.captions[0]
@@ -238,6 +277,21 @@ class App extends React.Component<{}, State> {
             : <div>Push To Talk</div>}
         </div>
 
+        <div className="kl-photo">
+          <button className={`kl-button-photo ${this.state.isMicrophoneActive ? 'kl-button-photo--active' : ''}`} onClick={this.onClickPhoto}>
+            <i className="material-icons">photo_camera</i>
+          </button>
+          <div>Take Picture</div>
+        </div>
+
+        <div className="kl-snapshots"> 
+            {this.state.snapshots.map(s =>
+              <div className="kl-snapshot">
+                <img src={s.dataUri} />
+              </div>
+            )}
+        </div>
+
         <div className="kl-chat">
           {this.state.messages.map(message =>
             message.userType === UserType.User
@@ -269,7 +323,6 @@ class App extends React.Component<{}, State> {
 
         <div className="kl-debug">
           <div>Debug:</div>
-          <button className="kl-button" onClick={this.onAnalyze}>Analyze</button>
           <button className="kl-button" onClick={this.onDebugAddMessage}>Add Message</button>
         </div>
       </div>
