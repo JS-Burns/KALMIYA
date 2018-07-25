@@ -2,6 +2,7 @@ import * as React from 'react'
 import * as SDK from 'microsoft-speech-browser-sdk'
 import * as SpeechService from './services/speechRecognizer'
 import * as vision from './services/vision'
+import * as personalityChat from './services/personalityChat'
 import { intent, Intents } from './services/intent'
 import * as util from './utilities'
 import * as uuid from 'uuid/v4'
@@ -49,7 +50,7 @@ class App extends React.Component<{}, State> {
   componentDidMount() {
     const canvas = this.canvasRef.current!
     canvas.width = window.innerWidth
-    canvas.height= window.innerHeight
+    canvas.height = window.innerHeight
 
     const image = new Image()
     image.onload = () => {
@@ -118,11 +119,7 @@ class App extends React.Component<{}, State> {
       console.debug(JSON.stringify(event.Result, null, 2))
 
       const text = event.Result.DisplayText
-      this.addMessage(text, UserType.User)
-
-      if (intent(text).intent === Intents.Analyze) {
-        this.onAnalyze()
-      }
+      this.onUserInput(text)
     }
     else if (event instanceof SDK.SpeechDetailedPhraseEvent) {
       console.debug(`SpeechDetailedPhraseEvent: `)
@@ -134,14 +131,36 @@ class App extends React.Component<{}, State> {
     }
   }
 
+  onUserInput = async (text: string) => {
+    this.addMessage(text, UserType.User)
+
+    const pcResponse = await personalityChat.query(text, personalityChat.Persona.Friendly)
+    console.log(JSON.stringify(pcResponse, null, 2))
+    
+    if (pcResponse.ScenarioList.length > 0) {
+      const firstScenario = pcResponse.ScenarioList[0]
+      const response = util.chooseRandom(firstScenario.Responses)
+      this.addMessage(response, UserType.Bot)
+      return 
+    }
+
+    if (intent(text).intent === Intents.Analyze) {
+      this.onAnalyze()
+    }
+  }
+
   onAnalyze = async () => {
     console.log(`Analyze`)
+    this.addMessage(`Analyzing...`, UserType.Bot)
 
     const canvasElement = this.canvasRef.current!
     const context = canvasElement.getContext('2d')!
 
     const blob = await util.canvasToBlob(canvasElement)
     const { analyze, ocr } = await vision.all(blob)
+
+    console.log(JSON.stringify(analyze, null, 2))
+    console.log(JSON.stringify(ocr, null, 2))
 
     const snapshot: ISnapshot = {
       id: uuid(),
@@ -151,17 +170,17 @@ class App extends React.Component<{}, State> {
     }
 
     this.setState(prevState => ({
-        snapshots: [...prevState.snapshots, snapshot]
+      snapshots: [...prevState.snapshots, snapshot]
     }))
 
     if (analyze.description.captions.length > 0) {
       const caption = analyze.description.captions[0]
-      this.addMessage(caption.text, UserType.Bot)
+      this.addMessage(`I see: ${caption.text}`, UserType.Bot)
     }
 
     ocr.regions.map(region => {
-      const [x1,y1,width,height] = region.boundingBox.split(',').map(s => parseInt(s, 10))
-      context.rect(x1,y1,width,height)
+      const [x1, y1, width, height] = region.boundingBox.split(',').map(s => parseInt(s, 10))
+      context.rect(x1, y1, width, height)
       context.lineWidth = 4
       context.strokeStyle = "#FFFFFF"
       context.stroke()
@@ -182,7 +201,7 @@ class App extends React.Component<{}, State> {
       if (nextMessages.length > 10) {
         nextMessages.shift()
       }
-      
+
       return {
         messages: nextMessages
       }
@@ -223,22 +242,22 @@ class App extends React.Component<{}, State> {
           {this.state.messages.map(message =>
             message.userType === UserType.User
               ? <div className="kl-chat_user" key={message.id}>
-              <div className="kl-chat_text kl-chat_text--user">
-                {message.text}
+                <div className="kl-chat_text kl-chat_text--user">
+                  {message.text}
+                </div>
               </div>
-            </div>
               : <div className="kl-chat_bot" key={message.id}>
-              <div className="kl-chat_text kl-chat_text--bot">
-                {message.text}
+                <div className="kl-chat_text kl-chat_text--bot">
+                  {message.text}
+                </div>
               </div>
-            </div>
           )}
-          {this.state.hypothesis.length > 0 
+          {this.state.hypothesis.length > 0
             && <div className="kl-chat_user">
-            <div className="kl-chat_text kl-chat_text--user">
-              {this.state.hypothesis}
-            </div>
-          </div>}
+              <div className="kl-chat_text kl-chat_text--user">
+                {this.state.hypothesis}
+              </div>
+            </div>}
 
           <div>
             <div className="kl-clear-button" onClick={this.onClickClear}>
