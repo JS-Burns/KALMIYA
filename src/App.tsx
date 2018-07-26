@@ -30,8 +30,9 @@ interface IMessage {
 }
 
 interface State {
-  isMicrophoneActive: boolean,
-  hypothesis: string,
+  isViewingSnapshot: boolean
+  isMicrophoneActive: boolean
+  hypothesis: string
   messages: IMessage[]
   snapshots: ISnapshot[]
 }
@@ -42,6 +43,7 @@ class App extends React.Component<{}, State> {
 
   recognizer: SDK.Recognizer = SpeechService.setup(SDK.RecognitionMode.Interactive, "en-US", SDK.SpeechResultFormat.Simple, "8e9795ad8f3e4e61a2a67498600d3922")
   state: State = {
+    isViewingSnapshot: false,
     isMicrophoneActive: false,
     hypothesis: '',
     messages: [],
@@ -132,6 +134,11 @@ class App extends React.Component<{}, State> {
       console.debug(`SpeechSimplePhraseEvent: `)
       console.debug(JSON.stringify(event.Result, null, 2))
 
+      if (event.Result.RecognitionStatus === SDK.RecognitionStatus[SDK.RecognitionStatus.InitialSilenceTimeout]) {
+        this.addMessage(`Sorry, I didn't hear you. Please try again.`, UserType.Bot)
+        return
+      }
+
       const text = event.Result.DisplayText
       this.onUserInput(text)
     }
@@ -150,23 +157,50 @@ class App extends React.Component<{}, State> {
 
     const pcResponse = await personalityChat.query(text, personalityChat.Persona.Friendly)
     console.log(JSON.stringify(pcResponse, null, 2))
-    
+
     if (pcResponse.ScenarioList.length > 0) {
       const firstScenario = pcResponse.ScenarioList[0]
       const response = util.chooseRandom(firstScenario.Responses)
       this.addMessage(response, UserType.Bot)
-      return 
+      return
     }
 
-    if (intent(text).intent === Intents.Analyze) {
+    const userIntent = intent(text).intent
+    if (userIntent === Intents.Analyze) {
       this.onAnalyze(text)
     }
+    else if (userIntent === Intents.ClearSnapshot) {
+      this.clearCanvas()
+    }
+    else if (userIntent === Intents.ViewLastSnapshot) {
+      this.viewLastSnapshot()
+    }
+  }
+
+  clearCanvas = () => {
+    const canvasElement = this.canvasRef.current!
+    const context = canvasElement.getContext('2d')!
+    context.clearRect(0, 0, canvasElement.width, canvasElement.height)
+    this.setState({
+      isViewingSnapshot: false
+    })
+  }
+
+  viewLastSnapshot = () => {
+    if (this.state.snapshots.length === 0) {
+      this.addMessage(`There are no snapshots to view. Please take a snapshot by saying "Analyze" or "Take a photo".`, UserType.Bot)
+      return
+    }
+
+    const lastSnapshot = this.state.snapshots[this.state.snapshots.length - 1]
+    this.addMessage(`Viewing last snapshot.`, UserType.Bot)
+    this.setSnapshot(lastSnapshot)
   }
 
   onAnalyze = async (text: string) => {
     console.log(`Analyze`)
     this.addMessage(`Analyzing...`, UserType.Bot)
-    
+
     const videoElement = this.videoRef.current!
     const canvasElement = this.canvasRef.current!
 
@@ -209,12 +243,15 @@ class App extends React.Component<{}, State> {
     }))
 
     setTimeout(() => {
-      context.clearRect(0, 0, canvasElement.width, canvasElement.height)
+      this.clearCanvas()
     }, 1000)
 
     if (analyze.description.captions.length > 0) {
       const caption = analyze.description.captions[0]
       this.addMessage(`I see: ${caption.text}`, UserType.Bot)
+    }
+    else {
+      this.addMessage(`Hmmm, I'm not sure what this image is.`, UserType.Bot)
     }
 
     ocr.regions.map(region => {
@@ -256,9 +293,25 @@ class App extends React.Component<{}, State> {
     this.addMessage(`test-${uuid().slice(0, 4)}`, UserType.User)
   }
 
-  onClickClear = () => {
+  onClickClearMessages = () => {
     this.setState({
       messages: []
+    })
+  }
+
+  onClickSnapshot = (s: ISnapshot) => {
+    this.setSnapshot(s)
+  }
+
+  onClickClearSnapshot = () => {
+    this.clearCanvas()
+  }
+
+  private setSnapshot = async (s: ISnapshot) => {
+    const canvas = this.canvasRef.current!
+    await util.drawToCanvas(canvas, s.dataUri)
+    this.setState({
+      isViewingSnapshot: true
     })
   }
 
@@ -266,30 +319,40 @@ class App extends React.Component<{}, State> {
     return (
       <div className="kl-app">
         <video autoPlay className="kl-video" ref={this.videoRef}></video>
-        <canvas width="800px" height="800px" className="kl-canvas" ref={this.canvasRef}></canvas>
+        <canvas className="kl-canvas" ref={this.canvasRef}></canvas>
 
         <div className="kl-talk">
           <button className={`kl-button-talk ${this.state.isMicrophoneActive ? 'kl-button-talk--active' : ''}`} onClick={this.onClickTalk}>
             <i className="material-icons">mic</i>
           </button>
-          {this.state.isMicrophoneActive
-            ? <div>Recording...</div>
-            : <div>Push To Talk</div>}
+          <div className="kl-talk_description">
+            {this.state.isMicrophoneActive
+              ? "Recording..."
+              : "Push To Talk"}
+          </div>
         </div>
 
         <div className="kl-photo">
           <button className={`kl-button-photo ${this.state.isMicrophoneActive ? 'kl-button-photo--active' : ''}`} onClick={this.onClickPhoto}>
             <i className="material-icons">photo_camera</i>
           </button>
-          <div>Take Picture</div>
+          <div className="kl-photo_description">Take Picture</div>
         </div>
 
-        <div className="kl-snapshots"> 
+        <div className={`kl-snapshots-panel ${this.state.snapshots.length > 0 ? 'kl-snapshots-panel--active' : ''}`}>
+          <div className="kl-snapshots">
             {this.state.snapshots.map(s =>
-              <div className="kl-snapshot">
+              <button key={s.id} className="kl-snapshot" onClick={() => this.onClickSnapshot(s)}>
                 <img src={s.dataUri} />
-              </div>
+              </button>
             )}
+          </div>
+        </div>
+
+        <div className="kl-clear-canvas-button" onClick={this.onClickClearSnapshot}>
+          <i className="material-icons">photo</i>
+          <span>Clear</span>
+          <i className="material-icons">clear</i>
         </div>
 
         <div className="kl-chat">
@@ -314,8 +377,9 @@ class App extends React.Component<{}, State> {
             </div>}
 
           <div>
-            <div className="kl-clear-button" onClick={this.onClickClear}>
-              <div>Clear</div>
+            <div className="kl-clear-messages-button" onClick={this.onClickClearMessages}>
+              <i className="material-icons">message</i>
+              <span>Clear</span>
               <i className="material-icons">clear</i>
             </div>
           </div>
