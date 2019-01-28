@@ -5,7 +5,7 @@ export function canvasToBlob(canvas: HTMLCanvasElement): Promise<Blob> {
               rej(new Error(`Error occurred when attempting to create Blob from canavas.`))
               return
             }
-            
+
             res(blob)
         })
     })

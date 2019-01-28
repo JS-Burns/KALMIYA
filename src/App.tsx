@@ -133,8 +133,8 @@ class App extends React.Component<{}, State> {
     else if (event instanceof SDK.SpeechSimplePhraseEvent) {
       console.debug(`SpeechSimplePhraseEvent: `)
       console.debug(JSON.stringify(event.Result, null, 2))
-
-      if (event.Result.RecognitionStatus === SDK.RecognitionStatus[SDK.RecognitionStatus.InitialSilenceTimeout]) {
+      // typescript operator error
+      if (event.Result.RecognitionStatus === event.Result.RecognitionStatus[SDK.RecognitionStatus.InitialSilenceTimeout]) {
         this.addMessage(`Sorry, I didn't hear you. Please try again.`, UserType.Bot)
         return
       }
